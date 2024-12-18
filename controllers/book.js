@@ -41,28 +41,26 @@ exports.getBestRatedBooks = (req, res, next) => {
 };
 
 exports.postOneBook = (req, res, next) => {
+	const bookObject = JSON.parse(req.body.book);
+	delete bookObject._id;
+	delete bookObject._userId;
 	const book = new Book({
-		userId: req.body.userId,
-		title: req.body.title,
-		author: req.body.author,
-		year: req.body.year,
-		genre: req.body.genre,
-		imageUrl: req.body.imageUrl,
+		...bookObject,
+		userId: req.auth.userId,
+		imageUrl: `${req.protocol}://${req.get("host")}/images/${
+			req.file.filename
+		}`,
 	});
+
 	book
 		.save()
 		.then(() => {
-			res.status(201).json({
-				message: "Book saved successfully!",
-			});
+			res.status(201).json({ message: "Objet enregistré !" });
 		})
 		.catch((error) => {
-			res.status(400).json({
-				error: error,
-			});
+			res.status(400).json({ error });
 		});
 };
-
 exports.updateOneBook = (req, res, next) => {
 	Thing.deleteOne({ _id: req.params.id })
 		.then(() => {
