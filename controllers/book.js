@@ -1,3 +1,5 @@
+const fs = require("fs");
+
 const Book = require("../models/Book");
 
 exports.getAllBooks = (req, res, next) => {
@@ -27,7 +29,7 @@ exports.getOneBook = (req, res, next) => {
 };
 
 exports.getBestRatedBooks = (req, res, next) => {
-	Book.findOne({
+	Book.find({
 		_id: req.params.id,
 	})
 		.then((book) => {
@@ -61,44 +63,70 @@ exports.postOneBook = (req, res, next) => {
 			res.status(400).json({ error });
 		});
 };
+
 exports.updateOneBook = (req, res, next) => {
-	Thing.deleteOne({ _id: req.params.id })
-		.then(() => {
-			res.status(200).json({
-				message: "Deleted!",
-			});
+	const bookObject = req.file
+		? {
+				...JSON.parse(req.body.book),
+				imageUrl: `${req.protocol}://${req.get("host")}/images/${
+					req.file.filename
+				}`,
+		  }
+		: { ...req.body };
+	delete bookObject._userId;
+	Book.findOne({ _id: req.params.id })
+		.then((book) => {
+			if (book.userId != req.auth.userId) {
+				res.status(401).json({ message: "Not authorized" });
+			} else {
+				const filename = book.imageUrl.split("/images/")[1];
+				fs.unlink(`images/${filename}`, () => {
+					Book.updateOne(
+						{ _id: req.params.id },
+						{ ...bookObject, _id: req.params.id }
+					)
+						.then(() => res.status(200).json({ message: "Objet modifié!" }))
+						.catch((error) => res.status(401).json({ error }));
+				});
+			}
 		})
 		.catch((error) => {
-			res.status(400).json({
-				error: error,
-			});
+			res.status(400).json({ error });
 		});
 };
 
 exports.deleteOneBook = (req, res, next) => {
-	Thing.deleteOne({ _id: req.params.id })
-		.then(() => {
-			res.status(200).json({
-				message: "Deleted!",
-			});
+	Book.findOne({ _id: req.params.id })
+		.then((book) => {
+			if (book.userId != req.auth.userId) {
+				res.status(403).json({ message: "Not authorized" });
+			} else {
+				const filename = book.imageUrl.split("/images/")[1];
+				fs.unlink(`images/${filename}`, () => {
+					Book.deleteOne({ _id: req.params.id })
+						.then(() => {
+							res.status(200).json({ message: "Objet supprimé !" });
+						})
+						.catch((error) => res.status(401).json({ error }));
+				});
+			}
 		})
 		.catch((error) => {
-			res.status(400).json({
-				error: error,
-			});
+			res.status(500).json({ error });
 		});
 };
 
 exports.rateOneBook = (req, res, next) => {
-	Thing.deleteOne({ _id: req.params.id })
-		.then(() => {
-			res.status(200).json({
-				message: "Deleted!",
-			});
-		})
-		.catch((error) => {
-			res.status(400).json({
-				error: error,
-			});
-		});
+	Book.findOne({ _id: req.params.id }).then((book) => {
+		const bookRatings = book.ratings;
+		const newRating = { userId: req.body.userId, grade: req.body.rating };
+		bookRatings.push(newRating);
+		book.averageRating = computeAverageRating(bookRatings);
+		book.save();
+	});
 };
+
+function computeAverageRating(ratings) {
+	const sumOfGrades = ratings.reduce((sum, rating) => sum + rating.grade, 0);
+	return (sumOfGrades / ratings.length).toFixed(2);
+}
