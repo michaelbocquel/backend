@@ -2,6 +2,9 @@ const express = require("express");
 
 const app = express();
 
+const dotenv = require("dotenv");
+dotenv.config();
+
 const path = require("path");
 
 app.use(express.json());
@@ -13,7 +16,7 @@ const mongoose = require("mongoose");
 
 mongoose
 	.connect(
-		"mongodb+srv://niuanyx:MBiocchqaueell302428442!@cluster0.zgl2x.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+		`mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.zgl2x.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
 	)
 	.then(() => console.log("Connexion à MongoDB réussie !"))
 	.catch(() => console.log("Connexion à MongoDB échouée !"));
